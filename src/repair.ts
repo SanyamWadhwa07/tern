@@ -89,6 +89,12 @@ export function parseLoose(input: string, repairs: string[] = []): unknown {
     }
     return v;
   } catch {}
+  // Before looking for fences: a fence inside a string value (an edit's text) is content, not a wrapper.
+  try {
+    const v = JSON.parse(dropTrailingCommas(s));
+    repairs.push("trailing-comma");
+    return v;
+  } catch {}
   const fence = /```[a-zA-Z]*\s*\n?([\s\S]*?)```/.exec(s);
   if (fence) {
     repairs.push("markdown-fence");
@@ -199,7 +205,11 @@ function callsInText(text: string, repairs: string[]): { name: string; args: unk
       const o = item as Record<string, unknown>;
       const name = o.name ?? o.tool ?? o.function ?? o.tool_name;
       if (typeof name !== "string") continue;
-      let args: unknown = o.arguments ?? o.parameters ?? o.args ?? o.input ?? {};
+      const given = o.arguments ?? o.parameters ?? o.args ?? o.input;
+      // Outside <tool_call> tags, JSON in prose is a call only if it looks like one: it has arguments,
+      // or names one of the four tools exactly. {"name": "my-app", "version": "1.0"} is just JSON.
+      if (!tagged.length && given === undefined && !["read", "edit", "bash", "done"].includes(name)) continue;
+      let args: unknown = given ?? {};
       if (typeof args === "string") args = parseLoose(args, repairs);
       out.push({ name, args });
     }

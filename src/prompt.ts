@@ -14,7 +14,7 @@ How to work:
 2. Make small edits. After each one, run something that shows whether it worked.
 3. If an edit is rejected because a line changed, use the fresh tags in the error.
 4. If a command fails, read the error and fix the cause. Do not repeat a failing command unchanged.
-5. Use non-interactive commands: no editors or pagers, pass -y where asked, and run servers in the background.
+5. Use non-interactive commands: no editors or pagers, pass -y where asked, and run servers in the background with output to a file (cmd > log 2>&1 &).
 6. Test files and checks may be read-only. Fix the code, not the tests.
 7. Call done only after you have seen the result work. done runs the task's checks; if they fail, you get the output and keep working.`;
 

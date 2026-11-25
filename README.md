@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>A terminal coding agent built for small open models.</strong><br>
-  Four tools, 682 tokens before the task, and a gate that checks every "done".
+  Four tools, 696 tokens before the task, and a gate that checks every "done".
 </p>
 
 <p align="center">
@@ -38,7 +38,7 @@ Needs Node.js 22.16 or newer. There is no build step and no runtime dependency.
 
 ```bash
 npm install
-npm test                 # 62 tests, scripted model, no keys, no network
+npm test                 # 72 tests, scripted model, no keys, no network
 ```
 
 Against a real model, any OpenAI-compatible endpoint works. OpenRouter is the default; a paid
@@ -63,8 +63,8 @@ afterwards with `npm run label -- <log-dir> --passed|--failed`. Details:
 
 <img src="docs/assets/architecture.svg" alt="The task goes to the model; its tool calls pass a repair layer, then run as read, edit or bash; a done call goes to the verify gate, which restores protected files and runs the checks; results and verdicts go back to the model until a claim is accepted" width="100%">
 
-- **A small prompt.** The system prompt is 336 tokens (with the notes-file line the CLI adds) and
-  the four tool schemas 346, so 682 before the task (counted with `o200k_base` in a test; Qwen's
+- **A small prompt.** The system prompt is 350 tokens (with the notes-file line the CLI adds) and
+  the four tool schemas 346, so 696 before the task (counted with `o200k_base` in a test; Qwen's
   own tokenizer is not measured yet).
 - **Calls are repaired in code.** JSON in markdown fences, trailing commas, calls written into the
   text as Qwen3-Coder `<function=...>` XML, `<invoke>` XML or `<tool_call>` JSON, and wrong tool
@@ -118,6 +118,8 @@ Terminal-Bench 2.0, 89 tasks × 5 trials, same model for every harness. Plan and
   stopped at its 6th repeat, both alone and inside the full loop
 - the scratchpad: oldest outputs trimmed first, the newest 6 kept, and the agent's notes shown
   again after a trim while the full outputs stay in the log
+- one regression test for each of the 8 bugs an independent review found (interrupts, checks
+  that write into test folders, background servers, split UTF-8 output, and others)
 - the prompt budget, and the CLI's refusal to start without a task, a model or a key
 
 ## Next

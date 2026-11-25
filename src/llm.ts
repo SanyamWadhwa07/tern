@@ -45,7 +45,6 @@ export async function* sseData(body: AsyncIterable<Uint8Array>): AsyncGenerator<
   }
 }
 
-const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 export class Llm {
   readonly config: LlmConfig;
@@ -71,7 +70,15 @@ export class Llm {
     const doFetch = c.fetch ?? fetch;
     const retries = c.retries ?? 2;
 
+    const backoff = (attempt: number) =>
+      new Promise<void>((resolve, reject) => {
+        const t = setTimeout(() => (signal?.removeEventListener("abort", stop), resolve()), (c.backoffMs ?? 1000) * 4 ** attempt);
+        const stop = () => (clearTimeout(t), reject(signal!.reason));
+        signal?.addEventListener("abort", stop, { once: true });
+      });
+
     for (let attempt = 0; ; attempt++) {
+      signal?.throwIfAborted(); // a listener added to an already aborted signal never fires
       const ctrl = new AbortController();
       const onAbort = () => ctrl.abort(signal?.reason);
       signal?.addEventListener("abort", onAbort);
@@ -87,13 +94,13 @@ export class Llm {
           res = await doFetch(`${c.baseUrl.replace(/\/$/, "")}/chat/completions`, { method: "POST", headers, body, signal: ctrl.signal });
         } catch (e) {
           if (signal?.aborted || attempt >= retries) throw e;
-          await sleep((c.backoffMs ?? 1000) * 4 ** attempt);
+          await backoff(attempt);
           continue;
         }
         if (!res.ok) {
           const detail = (await res.text().catch(() => "")).slice(0, 500);
           if ((res.status === 429 || res.status >= 500) && attempt < retries) {
-            await sleep((c.backoffMs ?? 1000) * 4 ** attempt);
+            await backoff(attempt);
             continue;
           }
           throw new Error(`model request failed: HTTP ${res.status} ${detail}`);
@@ -127,7 +134,7 @@ async function readStream(res: Response, touch: () => void): Promise<Reply> {
     const d = choice.delta ?? {};
     if (typeof d.content === "string") text += d.content;
     for (const tc of d.tool_calls ?? []) {
-      const key = tc.index ?? tc.id ?? parts.size;
+      const key = tc.index ?? (tc.id || parts.size); // an empty id is no key: each whole call gets its own entry
       const p = parts.get(key) ?? { id: "", name: "", arguments: "" };
       if (tc.id) p.id = tc.id;
       if (tc.function?.name && tc.function.name !== p.name) p.name += tc.function.name; // some servers repeat it

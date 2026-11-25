@@ -11,7 +11,7 @@ All notable changes are documented here. The format follows
 - The harness core: the agent loop with four tools: `read` (lines tagged with a line
   number and a 2-character hash), `edit` (replace or insert by those tags, or write a whole file),
   `bash` (time limit, process tree killed) and `done`.
-- System prompt and tool schemas: 682 tokens together (with the notes-file line), counted with
+- System prompt and tool schemas: 696 tokens together (with the notes-file line), counted with
   `o200k_base` in a test.
 - Streaming client for any OpenAI-compatible endpoint, OpenRouter by default: tool calls in
   fragments, usage and cost, retries on 429, 5xx and dropped connections, a stall timeout.
@@ -36,3 +36,21 @@ All notable changes are documented here. The format follows
   become one-line placeholders (the newest 6 stay whole), and the agent's notes file is shown
   again. The full outputs stay in `trajectory.jsonl`.
 - The Harbor adapter passes `TERN_TIME_LIMIT`, `TERN_TOKEN_LIMIT` and `TERN_CONTEXT_LIMIT` through.
+
+### Fixed
+
+Found by an independent review before release, each with a regression test:
+
+- Ctrl-C was ignored unless it landed during a model request. It now stops the client, retry
+  waits, running commands and checks, and the loop between turns.
+- Files that checks write into a protected folder (`__pycache__`, logs) made the next done claim
+  fail as tampering. Caches are no longer guarded, and the gate cleans up after its own checks.
+- A command that left a background process holding the output pipes could hang `bash`. The
+  command now ends when its shell exits.
+- Calls after an accepted `done` in the same reply got no tool message, which made
+  `messages.json` invalid chat format.
+- Whole tool calls with empty ids and no index were merged into one.
+- JSON in ordinary text with a `name` key was read as a tool call, and a fence inside an edit's
+  text broke parsing when the arguments had a trailing comma.
+- Non-ASCII output split across two chunks was garbled.
+- Context trimming undercounted escaped characters and trimmed more than needed.

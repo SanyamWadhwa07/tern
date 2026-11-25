@@ -7,10 +7,13 @@ import { clip, runCommand } from "./shell.ts";
 
 const norm = (p: string) => (process.platform === "win32" ? resolve(p).toLowerCase() : resolve(p));
 
+// Caches that test runners write by themselves. Not test content, so never guarded or restored.
+const CACHES = new Set(["__pycache__", ".pytest_cache", ".mypy_cache", ".ruff_cache", ".cache", "node_modules"]);
+
 function walk(root: string, out: Map<string, Buffer>) {
   if (!existsSync(root)) return;
   if (statSync(root).isFile()) return void out.set(root, readFileSync(root));
-  for (const name of readdirSync(root)) walk(join(root, name), out);
+  for (const name of readdirSync(root)) if (!CACHES.has(name)) walk(join(root, name), out);
 }
 
 /** Snapshots protected files at the start, and puts them back whenever they change. */
@@ -63,13 +66,14 @@ export type Claim = {
 };
 
 /** Judges one done claim: restores protected files, runs every check, and says what to tell the model. */
-export async function judgeClaim(o: { cwd: string; guard: Guard; checks: string[]; summary: string; turn: number; timeoutMs?: number }): Promise<{ claim: Claim; reply: string }> {
+export async function judgeClaim(o: { cwd: string; guard: Guard; checks: string[]; summary: string; turn: number; timeoutMs?: number; signal?: AbortSignal }): Promise<{ claim: Claim; reply: string }> {
   const tampered = o.guard.restore();
   const checks: CheckResult[] = [];
   for (const command of o.checks) {
-    const r = await runCommand(command, o.cwd, o.timeoutMs ?? 600_000);
+    const r = await runCommand(command, o.cwd, o.timeoutMs ?? 600_000, o.signal);
     checks.push({ command, exit: r.exit, timedOut: r.timedOut, ms: r.ms, tail: clip(r.output, 3000) });
   }
+  o.guard.restore(); // whatever the checks themselves wrote there is undone, and not blamed on the agent
   const failed = checks.filter((c) => c.exit !== 0);
   const accepted = tampered.length === 0 && failed.length === 0;
   const claim: Claim = { at: new Date().toISOString(), turn: o.turn, summary: o.summary, accepted, verified: checks.length > 0, tampered, checks };

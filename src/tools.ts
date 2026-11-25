@@ -7,7 +7,7 @@ import type { Guard } from "./gate.ts";
 import type { Call } from "./repair.ts";
 import { clip, runCommand } from "./shell.ts";
 
-export type ToolContext = { cwd: string; guard: Guard };
+export type ToolContext = { cwd: string; guard: Guard; signal?: AbortSignal };
 
 const around = (lines: string[], from: number, to: number) => anchored(lines, from - 2, Math.min(to + 2, from + 40));
 
@@ -47,7 +47,7 @@ function edit(ctx: ToolContext, a: { path: string; text: string; start?: string;
 
 async function bash(ctx: ToolContext, a: { command: string; timeout?: number }): Promise<string> {
   const seconds = Math.min(Math.max(a.timeout ?? 120, 1), 600);
-  const r = await runCommand(a.command, ctx.cwd, seconds * 1000);
+  const r = await runCommand(a.command, ctx.cwd, seconds * 1000, ctx.signal);
   const restored = ctx.guard.restore();
   const head = r.timedOut ? `timed out after ${seconds} s (killed)` : `exit ${r.exit}`;
   const note = restored.length ? `\nnote: this command changed protected files, so they were restored: ${restored.join(", ")}` : "";

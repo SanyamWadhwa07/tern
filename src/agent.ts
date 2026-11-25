@@ -85,6 +85,10 @@ export async function run(o: RunOptions): Promise<RunResult> {
 
   for (let turn = 1; turn <= maxTurns; turn++) {
     // Budget and loop notes ride on the last tool result (or nudge), so the conversation keeps its shape.
+    if (o.signal?.aborted) {
+      result.error = `interrupted: ${(o.signal.reason as Error)?.message ?? o.signal.reason}`;
+      return end("error");
+    }
     const verdict = budget.check();
     const notes = [...loopNotes, ...verdict.notes];
     loopNotes = [];
@@ -144,15 +148,23 @@ export async function run(o: RunOptions): Promise<RunResult> {
       watch(b.name, "unrepairable", b.error);
     }
 
-    for (const call of r.calls) {
+    // Every tool_call id gets an answer, even calls left unrun, so messages.json stays valid chat format.
+    const skipRest = (from: number, why: string) => {
+      for (const c of r.calls.slice(from)) messages.push({ role: "tool", tool_call_id: c.id, content: `not run: ${why}` });
+    };
+    for (const [i, call] of r.calls.entries()) {
+      if (o.signal?.aborted) {
+        skipRest(i, "the run was interrupted");
+        break;
+      }
       if (call.name !== "done") {
-        const out = await runTool(call, { cwd: o.cwd, guard });
+        const out = await runTool(call, { cwd: o.cwd, guard, signal: o.signal });
         emit({ type: "tool", turn, id: call.id, name: call.name, args: call.args, result: out });
         messages.push({ role: "tool", tool_call_id: call.id, content: out });
         watch(call.name, call.args, out);
         continue;
       }
-      const { claim, reply: verdict } = await judgeClaim({ cwd: o.cwd, guard, checks: o.checks ?? [], summary: String(call.args.summary ?? ""), turn });
+      const { claim, reply: verdict } = await judgeClaim({ cwd: o.cwd, guard, checks: o.checks ?? [], summary: String(call.args.summary ?? ""), turn, signal: o.signal });
       result.claims.push(claim);
       if (o.claimsFile) {
         mkdirSync(dirname(o.claimsFile), { recursive: true });
@@ -160,7 +172,10 @@ export async function run(o: RunOptions): Promise<RunResult> {
       }
       emit({ type: "claim", claim });
       messages.push({ role: "tool", tool_call_id: call.id, content: verdict });
-      if (claim.accepted) return end("done");
+      if (claim.accepted) {
+        skipRest(i + 1, "done was accepted");
+        return end("done");
+      }
     }
     if (looping) {
       emit({ type: "guard", turn, notes: [], stop: "loop" });
