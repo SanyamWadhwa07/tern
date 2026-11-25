@@ -2,7 +2,7 @@
 
 <p align="center">
   <strong>A terminal coding agent built for small open models.</strong><br>
-  Four tools, 638 tokens before the task, and a gate that checks every "done".
+  Four tools, 682 tokens before the task, and a gate that checks every "done".
 </p>
 
 <p align="center">
@@ -28,8 +28,9 @@ Tern's goal is to beat the best published Terminal-Bench 2.0 score for that size
 no leaderboard shows: **cost per solved task** and **false-done rate**, the share of runs where the
 agent says it finished but the hidden tests fail.
 
-**Status:** milestone 1. The harness core runs end to end offline, against a scripted model, in
-`npm test`. No benchmark has been run yet.
+**Status:** version 0.1.0. All six planned parts of the harness are built: the small core, call
+repair, anchored edits, the verify gate, the budget guard and the scratchpad. Each is tested end to
+end offline, against a scripted model, in `npm test`. No benchmark has been run yet.
 
 ## Run it
 
@@ -37,7 +38,7 @@ Needs Node.js 22.16 or newer. There is no build step and no runtime dependency.
 
 ```bash
 npm install
-npm test                 # 58 tests, scripted model, no keys, no network
+npm test                 # 62 tests, scripted model, no keys, no network
 ```
 
 Against a real model, any OpenAI-compatible endpoint works. OpenRouter is the default; a paid
@@ -62,8 +63,9 @@ afterwards with `npm run label -- <log-dir> --passed|--failed`. Details:
 
 <img src="docs/assets/architecture.svg" alt="The task goes to the model; its tool calls pass a repair layer, then run as read, edit or bash; a done call goes to the verify gate, which restores protected files and runs the checks; results and verdicts go back to the model until a claim is accepted" width="100%">
 
-- **A small prompt.** The system prompt is 292 tokens and the four tool schemas 346, so 638 before
-  the task (counted with `o200k_base` in a test; Qwen's own tokenizer is not measured yet).
+- **A small prompt.** The system prompt is 336 tokens (with the notes-file line the CLI adds) and
+  the four tool schemas 346, so 682 before the task (counted with `o200k_base` in a test; Qwen's
+  own tokenizer is not measured yet).
 - **Calls are repaired in code.** JSON in markdown fences, trailing commas, calls written into the
   text as Qwen3-Coder `<function=...>` XML, `<invoke>` XML or `<tool_call>` JSON, and wrong tool
   or argument names (`cmd` for `command`, `read_file` for `read`) are fixed without asking the
@@ -82,6 +84,10 @@ afterwards with `npm run label -- <log-dir> --passed|--failed`. Details:
   75% and at 90% of the limit (attached to the last tool result), and the run stops at 100% with
   its logs written. The same call giving the same result 3 times gets a "try something else" note;
   6 times stops the run as a loop. The same command with a new result counts as progress.
+- **A scratchpad, not compaction.** The agent keeps its plan and findings in a notes file, with
+  `edit`. Past 70% of `--context-limit`, the oldest tool outputs become one-line placeholders
+  (the newest 6 stay whole) and the notes are shown again. No model rewrites the history, so
+  nothing is lost silently, and the full outputs stay in the run log.
 
 ## Results
 
@@ -110,14 +116,18 @@ Terminal-Bench 2.0, 89 tasks × 5 trials, same model for every harness. Plan and
   that marks the run false-done
 - the budget guard: notes at 75% and 90% of a time or token limit, the stop at 100%, and a loop
   stopped at its 6th repeat, both alone and inside the full loop
+- the scratchpad: oldest outputs trimmed first, the newest 6 kept, and the agent's notes shown
+  again after a trim while the full outputs stay in the log
 - the prompt budget, and the CLI's refusal to start without a task, a model or a key
 
 ## Next
 
-1. A scratchpad file the agent keeps, instead of lossy history compaction.
-2. Pilot runs on 2 or 3 Terminal-Bench tasks to measure tokens per trial and estimate the full cost.
-3. Full runs against Terminus 2, little-coder and OpenCode on the same model, with ablations for
-   each part (repair layer, anchored edits, verify gate, budget guard).
+1. Pilot runs on 2 or 3 Terminal-Bench tasks to measure tokens per trial and estimate the full cost.
+2. Full runs against Terminus 2, little-coder and OpenCode on the same model, with ablations for
+   each part (repair layer, anchored edits, verify gate, budget guard, scratchpad).
+3. Long-term memory across tasks through Vouch, a separate project.
+4. From the run logs: a LoRA fine-tune of a small open model on verified successful trajectories,
+   and a model that predicts false "done" claims before the checks run.
 
 ## Name
 

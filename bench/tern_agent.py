@@ -29,6 +29,9 @@ from harbor.models.agent.context import AgentContext
 REPO = Path(__file__).resolve().parents[1]
 NODE_VERSION = os.environ.get("TERN_NODE_VERSION", "")  # pin an exact 24.x release before the first run
 LOG_DIR = "/logs/agent/tern"
+# Budget guard and scratchpad, passed through from the host. Set TERN_TIME_LIMIT a little under the
+# task's agent timeout so Tern stops itself and writes its logs before Harbor kills it.
+LIMIT_FLAGS = {"TERN_TIME_LIMIT": "--time-limit", "TERN_TOKEN_LIMIT": "--token-limit", "TERN_CONTEXT_LIMIT": "--context-limit"}
 
 
 class TernAgent(BaseInstalledAgent):
@@ -67,11 +70,12 @@ class TernAgent(BaseInstalledAgent):
         if not self.model_name:
             raise ValueError("pass --model openrouter/<model-slug>")
         model = self.model_name.removeprefix("openrouter/")  # OpenRouter's own slug
+        limits = "".join(f"{flag} {shlex.quote(os.environ[var])} " for var, flag in LIMIT_FLAGS.items() if os.environ.get(var))
         await self.exec_as_agent(
             environment,
             command=(
                 "node --experimental-strip-types --disable-warning=ExperimentalWarning /opt/tern/src/cli.ts "
-                f"--model {shlex.quote(model)} --max-turns 50 --log-dir {LOG_DIR} "
+                f"--model {shlex.quote(model)} --max-turns 50 --log-dir {LOG_DIR} {limits}"
                 f"{shlex.quote(instruction)} 2>&1 | tee /logs/agent/tern.txt"
             ),
             env={"OPENROUTER_API_KEY": os.environ.get("OPENROUTER_API_KEY", "")},

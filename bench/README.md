@@ -51,6 +51,7 @@ estimate the full run's cost from it before asking to go ahead.
 - Check `tern_agent.py` against the installed Harbor version. It follows Harbor main at `fc76b3a`
   (25 Nov 2026) and has never run.
 - Set `TERN_NODE_VERSION` to an exact Node 24 release.
-- Pass `--time-limit` a little under each task's agent timeout, so Tern stops itself and writes its
-  logs before Harbor kills it. The adapter does not do this yet.
+- Set `TERN_TIME_LIMIT` (seconds) a little under the tasks' agent timeout, so Tern stops itself and
+  writes its logs before Harbor kills it. `TERN_CONTEXT_LIMIT` and `TERN_TOKEN_LIMIT` are passed
+  through the same way. One value applies to every task in a job.
 - Check that the task containers can reach openrouter.ai, and how Harbor passes the key into them.

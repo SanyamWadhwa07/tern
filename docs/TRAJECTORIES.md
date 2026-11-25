@@ -1,6 +1,6 @@
 # Run logs
 
-Every run writes four files to its log directory (`--log-dir`, default `~/.tern/runs/<time>`).
+Every run writes these files to its log directory (`--log-dir`, default `~/.tern/runs/<time>`).
 They are meant to be read without the harness: by the benchmark join, and later as training data
 for a fine-tune on verified successful runs and for a model that predicts false "done" claims.
 
@@ -12,6 +12,11 @@ Format version: `tern-trajectory/1`. Every record and file carries it, plus the 
 | `messages.json` | the whole conversation in OpenAI chat format plus the tool schemas, ready for supervised fine-tuning |
 | `claims.jsonl` | every `done` claim with its checks, accepted or not |
 | `result.json` | the run's summary and a `label` slot for the final grade |
+| `notes.md` | the agent's own notes, if it wrote any: its plan and findings in its own words |
+
+`messages.json` holds the conversation as last sent to the model, so tool outputs trimmed by the
+scratchpad appear there as `[trimmed: ...]` placeholders. The full outputs are in the `tool`
+records of `trajectory.jsonl`.
 
 ## trajectory.jsonl records
 

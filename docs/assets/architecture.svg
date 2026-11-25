@@ -10,7 +10,7 @@
   <!-- the task -->
   <rect x="40" y="32" width="760" height="50" rx="16" fill="#F2F2F2"/>
   <text x="62" y="63" font-size="16" fill="#000">“Fix add() in math.cjs.”</text>
-  <text x="300" y="63" font-size="14" fill="#737373">after a system prompt and 4 tool schemas: 638 tokens</text>
+  <text x="300" y="63" font-size="14" fill="#737373">after a system prompt and 4 tool schemas: 682 tokens</text>
   <path d="M165 82V122" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
 
   <!-- 1 model -->
@@ -71,7 +71,7 @@
   <!-- the loop back -->
   <path d="M1035 418V454H165V422" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
   <path d="M745 418V454" stroke="#000" stroke-width="1.6" fill="none"/>
-  <text x="190" y="444" font-size="14" fill="#737373">tool results and the gate's verdict go back to the model, until a claim is accepted</text>
+  <text x="190" y="444" font-size="14" fill="#737373">results, verdicts and budget notes go back to the model, until a claim is accepted</text>
 
   <!-- logs -->
   <rect x="40" y="478" width="1120" height="58" rx="16" fill="#F2F2F2"/>

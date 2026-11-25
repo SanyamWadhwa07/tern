@@ -4,14 +4,15 @@ All notable changes are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the project uses
 [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-11-26
 
 ### Added
 
-- Milestone 1, the harness core. The agent loop with four tools: `read` (lines tagged with a line
+- The harness core: the agent loop with four tools: `read` (lines tagged with a line
   number and a 2-character hash), `edit` (replace or insert by those tags, or write a whole file),
   `bash` (time limit, process tree killed) and `done`.
-- System prompt and tool schemas: 638 tokens together, counted with `o200k_base` in a test.
+- System prompt and tool schemas: 682 tokens together (with the notes-file line), counted with
+  `o200k_base` in a test.
 - Streaming client for any OpenAI-compatible endpoint, OpenRouter by default: tool calls in
   fragments, usage and cost, retries on 429, 5xx and dropped connections, a stall timeout.
 - Tool-call repair: markdown fences, trailing commas, double-encoded JSON, calls written as
@@ -31,3 +32,7 @@ All notable changes are documented here. The format follows
 - `docs/BASELINES.md`: the 24.6% Terminal-Bench 2.0 baseline and its setup, confirmed on the live
   board, and a check of the edit-format claim.
 - `bench/`: a Harbor adapter stub and the benchmark plan. Not run.
+- Scratchpad instead of lossy compaction: past 70% of `--context-limit` the oldest tool outputs
+  become one-line placeholders (the newest 6 stay whole), and the agent's notes file is shown
+  again. The full outputs stay in `trajectory.jsonl`.
+- The Harbor adapter passes `TERN_TIME_LIMIT`, `TERN_TOKEN_LIMIT` and `TERN_CONTEXT_LIMIT` through.
