@@ -1,0 +1,22 @@
+{
+  "name": "tern-agent",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A terminal coding-agent harness for open-weight models of 35B or smaller.",
+  "license": "MIT",
+  "author": "Sanyam Wadhwa",
+  "type": "module",
+  "engines": {
+    "node": ">=22.16"
+  },
+  "scripts": {
+    "tern": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts",
+    "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "js-tiktoken": "^1.0.21",
+    "typescript": "^7.0.2"
+  }
+}

@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# local run logs (trajectories and claims)
+.tern/
+
+# secrets
+.env
+.env.*
+!.env.example
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# local tooling
+.claude/
+
+# python (harbor adapter)
+__pycache__/
