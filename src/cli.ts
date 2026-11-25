@@ -1,12 +1,14 @@
 // Command line: npm run tern -- --model <id> [options] "task"
 // Writes the run's trajectory, claims and result under --log-dir, prints progress to stderr, and
 // exits 0 only when a done claim was accepted.
-import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { randomUUID } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
 import { parseArgs } from "node:util";
 import { run, type RunEvent } from "./agent.ts";
 import { Llm, OPENROUTER } from "./llm.ts";
+import { runLog } from "./runlog.ts";
 
 const USAGE = `Usage: npm run tern -- --model <id> [options] "task"
 
@@ -17,8 +19,8 @@ const USAGE = `Usage: npm run tern -- --model <id> [options] "task"
   --max-turns <n>    default 50
   --task-file <path> read the task from a file
   --cwd <dir>        working directory (default: current)
-  --log-dir <dir>    where to write trajectory.jsonl, claims.jsonl, result.json
-                     (default ~/.tern/runs/<time>)
+  --log-dir <dir>    where to write trajectory.jsonl, messages.json, claims.jsonl
+                     and result.json (default ~/.tern/runs/<time>)
 
 The API key comes from TERN_API_KEY or OPENROUTER_API_KEY. A local server needs none.`;
 
@@ -56,14 +58,26 @@ if (!model) fail(`No model given: pass --model or set TERN_MODEL.\n\n${USAGE}`);
 if (!apiKey && !local) fail(`No API key: set TERN_API_KEY or OPENROUTER_API_KEY for ${baseUrl}.`);
 
 const logDir = resolve(v["log-dir"] ?? join(homedir(), ".tern", "runs", new Date().toISOString().replace(/[:.]/g, "-")));
-mkdirSync(logDir, { recursive: true });
-const trajectory = join(logDir, "trajectory.jsonl");
+const cwd = resolve(v.cwd ?? ".");
+const maxTurns = v["max-turns"] ? Number(v["max-turns"]) : undefined;
+const ternVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
+const log = runLog(logDir, {
+  runId: randomUUID(),
+  ternVersion,
+  model,
+  baseUrl,
+  cwd,
+  checks: v.check ?? [],
+  protect: v.protect ?? [],
+  maxTurns,
+  startedAt: new Date().toISOString(),
+});
 
 const say = (e: RunEvent) => {
-  appendFileSync(trajectory, JSON.stringify({ at: new Date().toISOString(), ...e }) + "\n");
+  log.event(e);
   if (e.type === "reply") {
     const calls = e.calls.map((c) => `${c.name} ${JSON.stringify(c.args).slice(0, 100)}`).join("; ");
-    process.stderr.write(`[${e.turn}] ${calls || e.text.slice(0, 120).replace(/\s+/g, " ") || "(empty reply)"}${e.repairs.length ? `  (repaired: ${e.repairs.join(", ")})` : ""}\n`);
+    process.stderr.write(`[${e.turn}] ${calls || e.raw.text.slice(0, 120).replace(/\s+/g, " ") || "(empty reply)"}${e.repairs.length ? `  (repaired: ${e.repairs.join(", ")})` : ""}\n`);
   } else if (e.type === "claim") {
     process.stderr.write(`    done ${e.claim.accepted ? "accepted" : "rejected"}${e.claim.verified ? "" : " (no checks)"}\n`);
   }
@@ -74,15 +88,15 @@ process.on("SIGINT", () => ac.abort(new Error("interrupted")));
 const result = await run({
   llm: new Llm({ baseUrl, model, apiKey }),
   task,
-  cwd: resolve(v.cwd ?? "."),
+  cwd,
   checks: v.check ?? [],
   protect: v.protect ?? [],
-  maxTurns: v["max-turns"] ? Number(v["max-turns"]) : undefined,
+  maxTurns,
   claimsFile: join(logDir, "claims.jsonl"),
   onEvent: say,
   signal: ac.signal,
 });
-writeFileSync(join(logDir, "result.json"), JSON.stringify({ model, baseUrl, ...result }, null, 2));
+log.finish(result);
 const cost = result.usage.cost !== undefined ? `, $${result.usage.cost.toFixed(4)}` : "";
 process.stderr.write(`${result.status} after ${result.turns} turns, ${result.usage.prompt} + ${result.usage.completion} tokens${cost}. Log: ${logDir}\n`);
 if (result.error) process.stderr.write(`error: ${result.error}\n`);

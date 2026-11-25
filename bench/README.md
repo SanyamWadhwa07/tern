@@ -28,6 +28,10 @@ build of the same model, so the fair comparison reruns little-coder on the same 
   saying the task is complete counts as the claim.
 - tokens per trial, turns per trial, and Tern's repair counts
 
+After each Tern trial, the verifier's reward is written into the run log with
+`npm run label -- <trial>/agent/tern --passed|--failed --reward <r> --source harbor`, so every
+trajectory carries its final grade ([format](../docs/TRAJECTORIES.md)).
+
 ## Commands (check flags against `harbor run --help` first)
 
 ```bash

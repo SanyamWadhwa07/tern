@@ -20,7 +20,11 @@ All notable changes are documented here. The format follows
 - Verify gate: protected paths are read-only (refused by `edit`, restored after `bash`), `done` is
   accepted only when every check exits 0, and every claim is logged to `claims.jsonl`.
 - A scripted fake model that streams real SSE, so the whole loop runs offline in `npm test`.
-- `npm run tern` command line, writing `trajectory.jsonl`, `claims.jsonl` and `result.json`.
+- `npm run tern` command line. Each run writes a training-ready log (`tern-trajectory/1`):
+  `trajectory.jsonl` with raw and repaired calls, tool results, claims and token counts,
+  `messages.json` in OpenAI chat format, `claims.jsonl` and `result.json`.
+- `npm run label` adds the final grade to a finished run and marks it false-done when an accepted
+  claim meets a failed grade.
 - `docs/BASELINES.md`: the 24.6% Terminal-Bench 2.0 baseline and its setup, confirmed on the live
   board, and a check of the edit-format claim.
 - `bench/`: a Harbor adapter stub and the benchmark plan. Not run.

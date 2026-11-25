@@ -5,12 +5,23 @@ import { dirname } from "node:path";
 import { Guard, judgeClaim, type Claim } from "./gate.ts";
 import type { Llm, Message, ToolCall, Usage } from "./llm.ts";
 import { systemPrompt, TOOLS } from "./prompt.ts";
-import { repairCalls } from "./repair.ts";
+import { repairCalls, type RawCall } from "./repair.ts";
 import { runTool } from "./tools.ts";
 
+// Every event carries what a training set needs: the model's raw output next to its repaired form,
+// each tool call with its id, arguments and result, and every done claim with its checks.
 export type RunEvent =
-  | { type: "reply"; turn: number; text: string; calls: { name: string; args: unknown }[]; bad: string[]; repairs: string[]; usage: Usage }
-  | { type: "tool"; turn: number; name: string; result: string }
+  | { type: "start"; system: string; tools: object[]; task: string }
+  | {
+      type: "reply";
+      turn: number;
+      raw: { text: string; calls: RawCall[]; finish?: string }; // as the model sent it
+      calls: { id: string; name: string; args: unknown }[]; // after repair
+      bad: { id: string; name: string; error: string }[];
+      repairs: string[];
+      usage: Usage;
+    }
+  | { type: "tool"; turn: number; id: string; name: string; args: unknown; result: string }
   | { type: "claim"; claim: Claim }
   | { type: "end"; status: RunResult["status"]; turns: number };
 
@@ -34,6 +45,7 @@ export type RunResult = {
   repairs: number; // fixes applied to calls
   badCalls: number; // calls that could not be repaired
   error?: string;
+  messages: Message[]; // the whole conversation in OpenAI chat format, as last sent to the model
 };
 
 const NUDGE = "No tool call found. Call a tool to make progress, or call done if the task is finished.";
@@ -46,7 +58,8 @@ export async function run(o: RunOptions): Promise<RunResult> {
     { role: "system", content: systemPrompt(o.cwd) },
     { role: "user", content: o.task },
   ];
-  const result: RunResult = { status: "max_turns", turns: 0, claims: [], usage: { prompt: 0, completion: 0 }, repairs: 0, badCalls: 0 };
+  const result: RunResult = { status: "max_turns", turns: 0, claims: [], usage: { prompt: 0, completion: 0 }, repairs: 0, badCalls: 0, messages };
+  emit({ type: "start", system: messages[0].content as string, tools: TOOLS, task: o.task });
   const end = (status: RunResult["status"]) => {
     result.status = status;
     emit({ type: "end", status, turns: result.turns });
@@ -69,7 +82,15 @@ export async function run(o: RunOptions): Promise<RunResult> {
     const r = repairCalls(reply.calls, reply.text);
     result.repairs += r.repairs.length;
     result.badCalls += r.bad.length;
-    emit({ type: "reply", turn, text: reply.text, calls: r.calls.map((c) => ({ name: c.name, args: c.args })), bad: r.bad.map((b) => b.error), repairs: r.repairs, usage: reply.usage });
+    emit({
+      type: "reply",
+      turn,
+      raw: { text: reply.text, calls: reply.calls, finish: reply.finish },
+      calls: r.calls.map((c) => ({ id: c.id, name: c.name, args: c.args })),
+      bad: r.bad,
+      repairs: r.repairs,
+      usage: reply.usage,
+    });
 
     if (!r.calls.length && !r.bad.length) {
       messages.push({ role: "assistant", content: reply.text }, { role: "user", content: NUDGE });
@@ -86,7 +107,7 @@ export async function run(o: RunOptions): Promise<RunResult> {
     for (const call of r.calls) {
       if (call.name !== "done") {
         const out = await runTool(call, { cwd: o.cwd, guard });
-        emit({ type: "tool", turn, name: call.name, result: out });
+        emit({ type: "tool", turn, id: call.id, name: call.name, args: call.args, result: out });
         messages.push({ role: "tool", tool_call_id: call.id, content: out });
         continue;
       }

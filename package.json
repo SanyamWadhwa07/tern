@@ -11,6 +11,7 @@
   },
   "scripts": {
     "tern": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli.ts",
+    "label": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/label.ts",
     "test": "node --experimental-strip-types --disable-warning=ExperimentalWarning --test \"test/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },

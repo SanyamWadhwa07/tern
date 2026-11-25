@@ -37,7 +37,7 @@ Needs Node.js 22.16 or newer. There is no build step and no runtime dependency.
 
 ```bash
 npm install
-npm test                 # 45 tests, scripted model, no keys, no network
+npm test                 # 47 tests, scripted model, no keys, no network
 ```
 
 Against a real model, any OpenAI-compatible endpoint works. OpenRouter is the default; a paid
@@ -50,8 +50,13 @@ npm run tern -- --model <openrouter-model-slug> \
   "Fix the failing date parser in src/dates.ts"
 ```
 
-For a local server, pass `--base-url http://localhost:8080/v1` and no key. Each run writes
-`trajectory.jsonl`, `claims.jsonl` and `result.json` to `~/.tern/runs/<time>` (or `--log-dir`).
+For a local server, pass `--base-url http://localhost:8080/v1` and no key.
+
+Each run writes its log to `~/.tern/runs/<time>` (or `--log-dir`) in a training-ready format:
+every reply with the model's raw output next to the repaired calls, every tool result, every
+"done" claim with its checks, and the conversation in OpenAI chat format. The final grade is added
+afterwards with `npm run label -- <log-dir> --passed|--failed`. Details:
+[docs/TRAJECTORIES.md](docs/TRAJECTORIES.md).
 
 ## How it works
 
@@ -97,6 +102,8 @@ Terminal-Bench 2.0, 89 tasks × 5 trials, same model for every harness. Plan and
 - anchored reads and edits, stale anchors, Windows line endings
 - the streaming client: fragmented tool calls, usage and cost, retries on 429 and 5xx, a stalled
   stream, an error inside the stream
+- the run log on disk: the real CLI against a scripted model over local HTTP, then a final label
+  that marks the run false-done
 - the prompt budget, and the CLI's refusal to start without a task, a model or a key
 
 ## Next
