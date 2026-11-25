@@ -37,7 +37,7 @@ Needs Node.js 22.16 or newer. There is no build step and no runtime dependency.
 
 ```bash
 npm install
-npm test                 # 47 tests, scripted model, no keys, no network
+npm test                 # 58 tests, scripted model, no keys, no network
 ```
 
 Against a real model, any OpenAI-compatible endpoint works. OpenRouter is the default; a paid
@@ -78,6 +78,10 @@ afterwards with `npm run label -- <log-dir> --passed|--failed`. Details:
   gets the output and keeps working. Every claim is logged with its checks, accepted or not.
 - **Tests are read-only.** Protected paths are snapshotted at the start. `edit` refuses them, and
   any `bash` command that changes them is undone right after it runs, with a note to the model.
+- **A budget the model can see.** With `--time-limit` or `--token-limit`, the model gets a note at
+  75% and at 90% of the limit (attached to the last tool result), and the run stops at 100% with
+  its logs written. The same call giving the same result 3 times gets a "try something else" note;
+  6 times stops the run as a loop. The same command with a new result counts as progress.
 
 ## Results
 
@@ -104,15 +108,16 @@ Terminal-Bench 2.0, 89 tasks × 5 trials, same model for every harness. Plan and
   stream, an error inside the stream
 - the run log on disk: the real CLI against a scripted model over local HTTP, then a final label
   that marks the run false-done
+- the budget guard: notes at 75% and 90% of a time or token limit, the stop at 100%, and a loop
+  stopped at its 6th repeat, both alone and inside the full loop
 - the prompt budget, and the CLI's refusal to start without a task, a model or a key
 
 ## Next
 
-1. Budget guard: time and token warnings, and loop detection.
-2. A scratchpad file the agent keeps, instead of lossy history compaction.
-3. Pilot runs on 2 or 3 Terminal-Bench tasks to measure tokens per trial and estimate the full cost.
-4. Full runs against Terminus 2, little-coder and OpenCode on the same model, with ablations for
-   each part (repair layer, anchored edits, verify gate).
+1. A scratchpad file the agent keeps, instead of lossy history compaction.
+2. Pilot runs on 2 or 3 Terminal-Bench tasks to measure tokens per trial and estimate the full cost.
+3. Full runs against Terminus 2, little-coder and OpenCode on the same model, with ablations for
+   each part (repair layer, anchored edits, verify gate, budget guard).
 
 ## Name
 

@@ -21,4 +21,7 @@ test("refuses to start without a task, a model, or a key for a remote endpoint",
   const noKey = cli(["--model", "some/model", "fix it"]);
   assert.equal(noKey.status, 2);
   assert.match(noKey.stderr, /^No API key: set TERN_API_KEY or OPENROUTER_API_KEY for https:\/\/openrouter.ai\/api\/v1/);
+  const badLimit = cli(["--model", "m", "--base-url", "http://localhost:9/v1", "--time-limit", "ten", "fix it"]);
+  assert.equal(badLimit.status, 2);
+  assert.match(badLimit.stderr, /^--time-limit must be a positive number, got "ten"/);
 });

@@ -21,7 +21,8 @@ Format version: `tern-trajectory/1`. Every record and file carries it, plus the 
 | `reply` | `turn`; `raw`: the model's text and tool calls exactly as streamed, before repair; `calls`: the repaired calls with ids; `bad`: calls that could not be repaired, with the error sent back; `repairs`: the name of every fix; `usage`: prompt and completion tokens, and cost when the endpoint reports it |
 | `tool` | `turn`, `id`, `name`, `args`, `result` |
 | `claim` | `claim`: turn, summary, accepted, verified (false when there were no checks), restored protected files, and each check's command, exit code, time and output tail |
-| `end` | `status` (`done`, `max_turns` or `error`), `turns`, total `usage`, `repairs`, `badCalls`, `claimedDone` |
+| `guard` | `turn`, `notes`: budget and loop notes added to the last tool result before this turn's request, `stop` when the guard ends the run |
+| `end` | `status` (`done`, `max_turns`, `time_limit`, `token_limit`, `loop` or `error`), `turns`, total `usage`, `repairs`, `badCalls`, `claimedDone` |
 | `label` | added later: `passed`, `reward`, `source`, `falseDone`, `labeledAt` |
 
 `raw` next to `calls` is what makes the repair layer measurable, and what a model trained to emit

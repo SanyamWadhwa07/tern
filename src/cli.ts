@@ -17,6 +17,8 @@ const USAGE = `Usage: npm run tern -- --model <id> [options] "task"
   --check <cmd>      command that must exit 0 before done is accepted (repeatable)
   --protect <path>   file or directory the agent may not change (repeatable)
   --max-turns <n>    default 50
+  --time-limit <s>   seconds for the whole run: notes at 75% and 90%, stop at 100%
+  --token-limit <n>  prompt + completion tokens for the whole run, same notes and stop
   --task-file <path> read the task from a file
   --cwd <dir>        working directory (default: current)
   --log-dir <dir>    where to write trajectory.jsonl, messages.json, claims.jsonl
@@ -37,6 +39,8 @@ const { values: v, positionals } = parseArgs({
     check: { type: "string", multiple: true },
     protect: { type: "string", multiple: true },
     "max-turns": { type: "string" },
+    "time-limit": { type: "string" },
+    "token-limit": { type: "string" },
     "task-file": { type: "string" },
     cwd: { type: "string" },
     "log-dir": { type: "string" },
@@ -59,7 +63,15 @@ if (!apiKey && !local) fail(`No API key: set TERN_API_KEY or OPENROUTER_API_KEY 
 
 const logDir = resolve(v["log-dir"] ?? join(homedir(), ".tern", "runs", new Date().toISOString().replace(/[:.]/g, "-")));
 const cwd = resolve(v.cwd ?? ".");
-const maxTurns = v["max-turns"] ? Number(v["max-turns"]) : undefined;
+const positive = (flag: string, value?: string) => {
+  if (value === undefined) return undefined;
+  const n = Number(value);
+  if (!(n > 0)) fail(`${flag} must be a positive number, got "${value}".`);
+  return n;
+};
+const maxTurns = positive("--max-turns", v["max-turns"]);
+const timeLimitMs = v["time-limit"] !== undefined ? positive("--time-limit", v["time-limit"])! * 1000 : undefined;
+const tokenLimit = positive("--token-limit", v["token-limit"]);
 const ternVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 const log = runLog(logDir, {
   runId: randomUUID(),
@@ -70,6 +82,8 @@ const log = runLog(logDir, {
   checks: v.check ?? [],
   protect: v.protect ?? [],
   maxTurns,
+  timeLimitMs,
+  tokenLimit,
   startedAt: new Date().toISOString(),
 });
 
@@ -80,6 +94,9 @@ const say = (e: RunEvent) => {
     process.stderr.write(`[${e.turn}] ${calls || e.raw.text.slice(0, 120).replace(/\s+/g, " ") || "(empty reply)"}${e.repairs.length ? `  (repaired: ${e.repairs.join(", ")})` : ""}\n`);
   } else if (e.type === "claim") {
     process.stderr.write(`    done ${e.claim.accepted ? "accepted" : "rejected"}${e.claim.verified ? "" : " (no checks)"}\n`);
+  } else if (e.type === "guard") {
+    for (const n of e.notes) process.stderr.write(`    ${n.split(".")[0]}\n`);
+    if (e.stop) process.stderr.write(`    stopped: ${e.stop}\n`);
   }
 };
 
@@ -92,6 +109,8 @@ const result = await run({
   checks: v.check ?? [],
   protect: v.protect ?? [],
   maxTurns,
+  timeLimitMs,
+  tokenLimit,
   claimsFile: join(logDir, "claims.jsonl"),
   onEvent: say,
   signal: ac.signal,

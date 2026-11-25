@@ -25,6 +25,9 @@ All notable changes are documented here. The format follows
   `messages.json` in OpenAI chat format, `claims.jsonl` and `result.json`.
 - `npm run label` adds the final grade to a finished run and marks it false-done when an accepted
   claim meets a failed grade.
+- Budget guard: `--time-limit` and `--token-limit` give the model a note at 75% and 90% and stop
+  the run at 100% with its logs written; the same call with the same result warns at the 3rd
+  repeat and stops the run at the 6th. Notes and stops are logged as `guard` records.
 - `docs/BASELINES.md`: the 24.6% Terminal-Bench 2.0 baseline and its setup, confirmed on the live
   board, and a check of the edit-format claim.
 - `bench/`: a Harbor adapter stub and the benchmark plan. Not run.

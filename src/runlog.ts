@@ -20,6 +20,8 @@ export type RunMeta = {
   checks: string[];
   protect: string[];
   maxTurns?: number;
+  timeLimitMs?: number;
+  tokenLimit?: number;
   startedAt: string;
 };
 

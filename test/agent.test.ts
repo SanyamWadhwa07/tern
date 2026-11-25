@@ -112,3 +112,37 @@ test("a model that keeps failing ends the run with status error", async () => {
   assert.equal(r.status, "error");
   assert.match(r.error!, /HTTP 401 no key/);
 });
+
+// ------------------------------------------------------------------ budget guard
+
+const echo = (msgs: unknown[]) => ({ calls: [{ name: "bash", args: { command: `node -e "console.log(${msgs.length})"` } }] }); // new output each turn
+
+test("time limit: a note at 75% rides on the last tool result, then the run stops with its logs", async () => {
+  let t = 0;
+  const minute = 60_000;
+  const m = model([(msgs) => ((t += 2 * minute), echo(msgs))]); // each model call takes 2 minutes
+  const events: RunEvent[] = [];
+  const r = await run({ llm: m.llm, task: "t", cwd: toyTask(), timeLimitMs: 10 * minute, now: () => t, onEvent: (e) => events.push(e) });
+  assert.equal(r.status, "time_limit");
+  assert.equal(r.turns, 5);
+  assert.match(m.requests[4].body.messages.at(-1).content, /^exit 0\n\d+\n\nBudget: 80% of the time limit used \(8\.0 of 10\.0 min\)\. Focus on the main fix/);
+  assert.deepEqual(events.filter((e) => e.type === "guard").map((e) => (e as any).stop ?? "note"), ["note", "time_limit"]);
+  assert.equal(events.at(-1)!.type, "end");
+});
+
+test("token limit: a past-90% note, then a stop", async () => {
+  const m = model([(msgs) => echo(msgs)]); // 120 tokens per call
+  const r = await run({ llm: m.llm, task: "t", cwd: toyTask(), tokenLimit: 500 });
+  assert.equal(r.status, "token_limit");
+  assert.equal(r.turns, 5);
+  assert.match(m.requests[4].body.messages.at(-1).content, /Budget: 96% of the token limit used \(480 of 500\)\. Stop exploring/);
+  assert.deepEqual(r.usage, { prompt: 500, completion: 100 });
+});
+
+test("a model stuck on the same failing command is warned at the 3rd repeat and stopped at the 6th", async () => {
+  const m = model([{ calls: [{ name: "bash", args: { command: 'node -e "process.exit(1)"' } }] }]);
+  const r = await run({ llm: m.llm, task: "t", cwd: toyTask(), maxTurns: 20 });
+  assert.equal(r.status, "loop");
+  assert.equal(r.turns, 6);
+  assert.match(m.requests[3].body.messages.at(-1).content, /^exit 1\n\(no output\)\n\nLoop: this exact bash call has now given the same result 3 times/);
+});
