@@ -1,0 +1,84 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 560" width="1200" height="560" font-family="Roboto, 'Helvetica Neue', Arial, sans-serif" role="img" aria-labelledby="t d">
+  <title id="t">How one Tern run works</title>
+  <desc id="d">The task goes to the model through an OpenAI-compatible stream. Its tool calls pass through a repair layer, then run as read, edit or bash. A done call goes to the verify gate, which restores protected files and runs the checks. Results and verdicts go back to the model until a done claim is accepted. Every run writes a trajectory, a claims log and a result file.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#000"/></marker>
+    <marker id="o" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#0E7C86"/></marker>
+  </defs>
+  <rect width="1200" height="560" rx="24" fill="#FFFFFF"/>
+
+  <!-- the task -->
+  <rect x="40" y="32" width="760" height="50" rx="16" fill="#F2F2F2"/>
+  <text x="62" y="63" font-size="16" fill="#000">“Fix add() in math.cjs.”</text>
+  <text x="300" y="63" font-size="14" fill="#737373">after a system prompt and 4 tool schemas: 638 tokens</text>
+  <path d="M165 82V122" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+
+  <!-- 1 model -->
+  <rect x="40" y="128" width="250" height="290" rx="18" fill="#F7F7F7"/>
+  <text x="64" y="166" font-size="21" font-weight="600" fill="#000">1  Model</text>
+  <text x="64" y="190" font-size="14" fill="#737373">OpenAI-compatible stream</text>
+  <g font-size="15" fill="#000">
+    <circle cx="72" cy="236" r="4" fill="#0E7C86"/><text x="86" y="241">OpenRouter or local</text>
+    <circle cx="72" cy="272" r="4" fill="#0E7C86"/><text x="86" y="277">text + tool calls</text>
+    <circle cx="72" cy="308" r="4" fill="#0E7C86"/><text x="86" y="313">tokens and cost per call</text>
+    <circle cx="72" cy="344" r="4" fill="#0E7C86"/><text x="86" y="349">retries 429 and 5xx</text>
+    <circle cx="72" cy="380" r="4" fill="#0E7C86"/><text x="86" y="385">stops a stalled stream</text>
+  </g>
+  <path d="M292 240H328" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+
+  <!-- 2 repair -->
+  <rect x="330" y="128" width="250" height="290" rx="18" fill="#F7F7F7"/>
+  <text x="354" y="166" font-size="21" font-weight="600" fill="#000">2  Repair</text>
+  <text x="354" y="190" font-size="14" fill="#737373">fixed in code, not re-asked</text>
+  <g font-size="15" fill="#000">
+    <circle cx="362" cy="236" r="4" fill="#0E7C86"/><text x="376" y="241">JSON in fences</text>
+    <circle cx="362" cy="272" r="4" fill="#0E7C86"/><text x="376" y="277">trailing commas</text>
+    <circle cx="362" cy="308" r="4" fill="#0E7C86"/><text x="376" y="313">calls written as XML</text>
+    <circle cx="362" cy="344" r="4" fill="#0E7C86"/><text x="376" y="349">wrong tool or arg names</text>
+    <circle cx="362" cy="380" r="4" fill="#0E7C86"/><text x="376" y="385">each fix is logged</text>
+  </g>
+  <path d="M582 240H618" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+
+  <!-- 3 tools -->
+  <rect x="620" y="128" width="250" height="290" rx="18" fill="#F7F7F7"/>
+  <text x="644" y="166" font-size="21" font-weight="600" fill="#000">3  Tools</text>
+  <text x="644" y="190" font-size="14" fill="#737373">read, edit, bash, done</text>
+  <rect x="644" y="212" width="202" height="60" rx="10" fill="#FFFFFF" stroke="#E3E3E3"/>
+  <g font-family="'Roboto Mono', Consolas, monospace" font-size="13" fill="#000">
+    <text x="656" y="237"><tspan fill="#0E7C86">1:ed|</tspan>function add(a, b) {</text>
+    <text x="656" y="259"><tspan fill="#0E7C86">2:e6|</tspan>  return a - b;</text>
+  </g>
+  <g font-size="15" fill="#000">
+    <circle cx="652" cy="308" r="4" fill="#0E7C86"/><text x="666" y="313">edit names lines by tag</text>
+    <circle cx="652" cy="344" r="4" fill="#0E7C86"/><text x="666" y="349">stale tag: rejected</text>
+    <circle cx="652" cy="380" r="4" fill="#0E7C86"/><text x="666" y="385">bash: killed at timeout</text>
+  </g>
+  <path d="M872 240H908" stroke="#0E7C86" stroke-width="1.8" fill="none" marker-end="url(#o)"/>
+  <text x="890" y="228" font-size="13" text-anchor="middle" fill="#0E7C86">done</text>
+
+  <!-- 4 gate -->
+  <rect x="910" y="128" width="250" height="290" rx="18" fill="#FFFFFF" stroke="#0E7C86" stroke-width="1.8"/>
+  <text x="934" y="166" font-size="21" font-weight="600" fill="#000">4  Verify gate</text>
+  <text x="934" y="190" font-size="14" fill="#737373">done is a claim to check</text>
+  <g font-size="15" fill="#000">
+    <circle cx="942" cy="236" r="4" fill="#0E7C86"/><text x="956" y="241">protected files restored</text>
+    <circle cx="942" cy="272" r="4" fill="#0E7C86"/><text x="956" y="277">every check must pass</text>
+    <circle cx="942" cy="308" r="4" fill="#0E7C86"/><text x="956" y="313">pass: the run ends</text>
+    <circle cx="942" cy="344" r="4" fill="#0E7C86"/><text x="956" y="349">fail: output goes back</text>
+    <circle cx="942" cy="380" r="4" fill="#0E7C86"/><text x="956" y="385">every claim is logged</text>
+  </g>
+
+  <!-- the loop back -->
+  <path d="M1035 418V454H165V422" stroke="#000" stroke-width="1.6" fill="none" marker-end="url(#a)"/>
+  <path d="M745 418V454" stroke="#000" stroke-width="1.6" fill="none"/>
+  <text x="190" y="444" font-size="14" fill="#737373">tool results and the gate's verdict go back to the model, until a claim is accepted</text>
+
+  <!-- logs -->
+  <rect x="40" y="478" width="1120" height="58" rx="16" fill="#F2F2F2"/>
+  <text x="62" y="513" font-size="15" fill="#737373">Every run writes</text>
+  <g font-size="15" fill="#000">
+    <text x="190" y="513"><tspan font-weight="600">trajectory.jsonl</tspan>  every reply and tool result</text>
+    <text x="520" y="513"><tspan font-weight="600">claims.jsonl</tspan>  every done claim, accepted or not</text>
+    <text x="890" y="513"><tspan font-weight="600">result.json</tspan>  turns, tokens, cost</text>
+  </g>
+</svg>
