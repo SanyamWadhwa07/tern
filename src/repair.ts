@@ -199,7 +199,7 @@ function callsInText(text: string, repairs: string[]): { name: string; args: unk
       const o = item as Record<string, unknown>;
       const name = o.name ?? o.tool ?? o.function ?? o.tool_name;
       if (typeof name !== "string") continue;
-      let args = o.arguments ?? o.parameters ?? o.args ?? o.input ?? {};
+      let args: unknown = o.arguments ?? o.parameters ?? o.args ?? o.input ?? {};
       if (typeof args === "string") args = parseLoose(args, repairs);
       out.push({ name, args });
     }

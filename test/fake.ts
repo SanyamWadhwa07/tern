@@ -48,7 +48,13 @@ export function scriptedModel(steps: Step[]) {
     const step = steps[Math.min(requests.length - 1, steps.length - 1)];
     if ("networkError" in step) throw new TypeError("fetch failed");
     if ("status" in step) return new Response(step.body ?? "", { status: step.status });
-    const turn = typeof step === "function" ? step(body.messages) : step;
+    let turn: Turn;
+    try {
+      turn = typeof step === "function" ? step(body.messages) : step;
+    } catch (e) {
+      // A bug in the script itself: fail the run with a 400 (not retried) instead of a thrown fetch error.
+      return new Response(`script step ${requests.length} failed: ${(e as Error).message}`, { status: 400 });
+    }
     return new Response(sse(events(turn)), { headers: { "Content-Type": "text/event-stream" } });
   };
   return { fetch: fakeFetch as typeof fetch, requests };
