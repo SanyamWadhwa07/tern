@@ -18,7 +18,9 @@ How to work:
 6. Test files and checks may be read-only. Fix the code, not the tests.
 7. Call done only after you have seen the result work. done runs the task's checks; if they fail, you get the output and keep working.`;
 
-export const systemPrompt = (cwd: string) => `${SYSTEM_PROMPT}\n\nWorking directory: ${cwd}`;
+export const systemPrompt = (cwd: string, notesFile?: string) =>
+  `${SYSTEM_PROMPT}\n\nWorking directory: ${cwd}` +
+  (notesFile ? `\nNotes file: ${notesFile}. Keep your plan, findings and what is done there with edit. Old tool output may be trimmed later; your notes are shown again when it is.` : "");
 
 const fn = (name: string, description: string, properties: Record<string, object>, required: string[]) => ({
   type: "function",

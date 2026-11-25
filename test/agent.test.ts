@@ -3,7 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { basename, join } from "node:path";
 import { run, type RunEvent } from "../src/agent.ts";
 import { Llm } from "../src/llm.ts";
 import { anchorOf, scriptedModel, type Step } from "./fake.ts";
@@ -145,4 +145,29 @@ test("a model stuck on the same failing command is warned at the 3rd repeat and 
   assert.equal(r.status, "loop");
   assert.equal(r.turns, 6);
   assert.match(m.requests[3].body.messages.at(-1).content, /^exit 1\n\(no output\)\n\nLoop: this exact bash call has now given the same result 3 times/);
+});
+
+// ------------------------------------------------------------------ scratchpad
+
+test("near the context limit old outputs are trimmed and the agent's notes are shown again", async () => {
+  const cwd = toyTask();
+  const notesFile = join(cwd, "..", `${basename(cwd)}-notes.md`); // outside the workspace, like the log dir
+  const big = (msgs: unknown[]) => ({ calls: [{ name: "bash", args: { command: `node -e "console.log('${"x".repeat(10)}'.repeat(400) + ${msgs.length})"` } }] }); // ~4,000 characters each
+  const m = model([
+    { calls: [{ name: "edit", args: { path: notesFile, text: "Plan: fix add() in math.cjs.\nFound: it subtracts." } }] },
+    ...Array.from({ length: 9 }, () => big),
+    { calls: [{ name: "done", args: { summary: "stopping" } }] },
+  ]);
+  const events: RunEvent[] = [];
+  const r = await run({ llm: m.llm, task: "t", cwd, contextLimit: 8000, notesFile, onEvent: (e) => events.push(e) });
+  assert.equal(r.status, "done");
+  assert.match(m.requests[0].body.messages[0].content, /Notes file: .*notes\.md\. Keep your plan/);
+
+  const guard = events.find((e) => e.type === "guard") as Extract<RunEvent, { type: "guard" }>;
+  assert.ok(guard, "a trim happened");
+  assert.match(guard.notes[0], /^Context: \d+ old tool outputs were trimmed to stay under the context limit\.\nYour notes \(.*\):\nPlan: fix add\(\) in math\.cjs\.\nFound: it subtracts\.$/);
+  const sent = m.requests[guard.turn - 1].body.messages;
+  assert.ok(sent.some((x: any) => x.role === "tool" && x.content.startsWith("[trimmed:")));
+  // The full outputs are still in the event stream (and so in trajectory.jsonl).
+  assert.ok(events.filter((e) => e.type === "tool").every((e) => !(e as any).result.startsWith("[trimmed:")));
 });

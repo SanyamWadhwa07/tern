@@ -19,6 +19,8 @@ const USAGE = `Usage: npm run tern -- --model <id> [options] "task"
   --max-turns <n>    default 50
   --time-limit <s>   seconds for the whole run: notes at 75% and 90%, stop at 100%
   --token-limit <n>  prompt + completion tokens for the whole run, same notes and stop
+  --context-limit <n> estimated tokens; past 70% the oldest tool outputs are trimmed,
+                     and the agent's notes file (notes.md in the log dir) is shown again
   --task-file <path> read the task from a file
   --cwd <dir>        working directory (default: current)
   --log-dir <dir>    where to write trajectory.jsonl, messages.json, claims.jsonl
@@ -41,6 +43,7 @@ const { values: v, positionals } = parseArgs({
     "max-turns": { type: "string" },
     "time-limit": { type: "string" },
     "token-limit": { type: "string" },
+    "context-limit": { type: "string" },
     "task-file": { type: "string" },
     cwd: { type: "string" },
     "log-dir": { type: "string" },
@@ -72,6 +75,8 @@ const positive = (flag: string, value?: string) => {
 const maxTurns = positive("--max-turns", v["max-turns"]);
 const timeLimitMs = v["time-limit"] !== undefined ? positive("--time-limit", v["time-limit"])! * 1000 : undefined;
 const tokenLimit = positive("--token-limit", v["token-limit"]);
+const contextLimit = positive("--context-limit", v["context-limit"]);
+const notesFile = join(logDir, "notes.md");
 const ternVersion = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8")).version;
 const log = runLog(logDir, {
   runId: randomUUID(),
@@ -84,6 +89,7 @@ const log = runLog(logDir, {
   maxTurns,
   timeLimitMs,
   tokenLimit,
+  contextLimit,
   startedAt: new Date().toISOString(),
 });
 
@@ -111,6 +117,8 @@ const result = await run({
   maxTurns,
   timeLimitMs,
   tokenLimit,
+  contextLimit,
+  notesFile,
   claimsFile: join(logDir, "claims.jsonl"),
   onEvent: say,
   signal: ac.signal,

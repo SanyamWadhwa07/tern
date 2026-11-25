@@ -1,8 +1,9 @@
 // The agent loop. Each turn: ask the model, repair its calls, run them, and send back the results.
 // The run ends when a done claim is accepted by the gate, or when the turn limit is reached.
-import { appendFileSync, mkdirSync } from "node:fs";
+import { appendFileSync, existsSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { Budget, LoopDetector } from "./budget.ts";
+import { estimateTokens, trimContext } from "./context.ts";
 import { Guard, judgeClaim, type Claim } from "./gate.ts";
 import type { Llm, Message, ToolCall, Usage } from "./llm.ts";
 import { systemPrompt, TOOLS } from "./prompt.ts";
@@ -37,6 +38,8 @@ export type RunOptions = {
   timeLimitMs?: number; // wall clock for the whole run: notes at 75% and 90%, stop at 100%
   tokenLimit?: number; // prompt + completion tokens summed over all requests, same notes and stop
   now?: () => number; // clock, for tests
+  contextLimit?: number; // estimated tokens; past 70% the oldest tool outputs are trimmed to 50%
+  notesFile?: string; // the agent's own notes, shown again whenever the context is trimmed
   claimsFile?: string; // JSONL, one line per done claim
   onEvent?: (e: RunEvent) => void;
   signal?: AbortSignal;
@@ -53,7 +56,13 @@ export type RunResult = {
   messages: Message[]; // the whole conversation in OpenAI chat format, as last sent to the model
 };
 
-const NUDGE = "No tool call found. Call a tool to make progress, or call done if the task is finished.";
+function readNotes(file?: string): string {
+  if (!file || !existsSync(file)) return "";
+  const text = readFileSync(file, "utf8").trim();
+  return text ? `\nYour notes (${file}):\n${text}` : "";
+}
+
+const NUDGE ="No tool call found. Call a tool to make progress, or call done if the task is finished.";
 
 export async function run(o: RunOptions): Promise<RunResult> {
   const guard = new Guard(o.cwd, o.protect);
@@ -63,7 +72,7 @@ export async function run(o: RunOptions): Promise<RunResult> {
   const loops = new LoopDetector();
   let loopNotes: string[] = [];
   const messages: Message[] = [
-    { role: "system", content: systemPrompt(o.cwd) },
+    { role: "system", content: systemPrompt(o.cwd, o.notesFile) },
     { role: "user", content: o.task },
   ];
   const result: RunResult = { status: "max_turns", turns: 0, claims: [], usage: { prompt: 0, completion: 0 }, repairs: 0, badCalls: 0, messages };
@@ -79,6 +88,10 @@ export async function run(o: RunOptions): Promise<RunResult> {
     const verdict = budget.check();
     const notes = [...loopNotes, ...verdict.notes];
     loopNotes = [];
+    if (o.contextLimit && estimateTokens(messages) > 0.7 * o.contextLimit) {
+      const n = trimContext(messages, 0.5 * o.contextLimit);
+      if (n) notes.push(`Context: ${n} old tool outputs were trimmed to stay under the context limit.${readNotes(o.notesFile)}`);
+    }
     if (notes.length || verdict.stop) emit({ type: "guard", turn, notes, stop: verdict.stop });
     if (verdict.stop) return end(verdict.stop);
     const last = messages.at(-1)!;

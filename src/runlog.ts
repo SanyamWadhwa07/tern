@@ -22,6 +22,7 @@ export type RunMeta = {
   maxTurns?: number;
   timeLimitMs?: number;
   tokenLimit?: number;
+  contextLimit?: number;
   startedAt: string;
 };
 
